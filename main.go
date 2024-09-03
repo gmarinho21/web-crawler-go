@@ -4,24 +4,37 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strconv"
 )
 
 func main() {
 	inputArgs := os.Args[1:]
 
-	if len(inputArgs) < 1 {
-		fmt.Println("no website provided")
+	if len(inputArgs) < 3 {
+		fmt.Println("Not enough arguments provided")
+		fmt.Println("Usage <URL> <maxConcurrency> <maxPages>")
 		os.Exit(1)
 	}
 
-	if len(inputArgs) > 1 {
+	if len(inputArgs) > 4 {
 		fmt.Println("too many arguments provided")
 		os.Exit(1)
 	}
 	BASE_URL := inputArgs[0]
 
-	const maxConcurrency = 3
-	cfg, err := configure(BASE_URL, maxConcurrency)
+	maxConcurrency, err := strconv.Atoi(inputArgs[1])
+	if err != nil {
+		fmt.Printf("Error - maxConcurrency: %v", err)
+		return
+	}
+
+	maxPages, err := strconv.Atoi(inputArgs[2])
+	if err != nil {
+		fmt.Printf("Error - maxPages: %v", err)
+		return
+	}
+
+	cfg, err := configure(BASE_URL, maxConcurrency, maxPages)
 	if err != nil {
 		fmt.Printf("Error - configure: %v", err)
 		return
@@ -45,6 +58,10 @@ func (cfg *config) crawlPage(rawCurrentURL string) {
 		<-cfg.concurrencyControl
 		cfg.wg.Done()
 	}()
+
+	if cfg.pagesLen() >= cfg.maxPages {
+		return
+	}
 
 	fmt.Printf("--------- New Request %s  -------\n", rawCurrentURL)
 	currentURL, err := url.Parse(rawCurrentURL)
